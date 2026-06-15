@@ -5,6 +5,8 @@ import { getProducts } from "../../services/ProductService";
 
 const getCarVideoUrl = (name = "", brand = "") => {
   const query = `${brand} ${name}`.toLowerCase();
+
+  // here is just fake video i cant find any video in web this is just test
   
   if (query.includes("mustang")) {
     return "/videos/mustang.mp4";
