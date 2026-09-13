@@ -4,8 +4,7 @@ import { getCars, deleteCar, updateCar } from "../../services/carService";
 import api from "../../services/api";
 import AddCar from "./Add";
 import { FaRegUserCircle } from "react-icons/fa";
-
-const IMG_BASE = "http://127.0.0.1:8000/storage/cars/";
+import { IMG_BASE } from "../../config/api";
 
 function MainList() {
   const navigate = useNavigate();

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaSearch, FaClipboardList, FaPlus, FaEdit, FaTrashAlt, FaChevronDown } from "react-icons/fa";
 import api from "../../services/api";
 
 /* ── action config ─────────────────────────────────────────────── */
@@ -9,7 +10,7 @@ const ACTION_STYLES = {
     text:  "text-emerald-300",
     dot:   "bg-emerald-400",
     badge: "bg-emerald-500/20 border-emerald-500/30 text-emerald-300",
-    icon:  "＋",
+    icon:  <FaPlus className="text-sm" />,
     label: "Created",
   },
   update: {
@@ -17,7 +18,7 @@ const ACTION_STYLES = {
     text:  "text-blue-300",
     dot:   "bg-blue-400",
     badge: "bg-blue-500/20 border-blue-500/30 text-blue-300",
-    icon:  "✎",
+    icon:  <FaEdit className="text-sm" />,
     label: "Updated",
   },
   delete: {
@@ -25,7 +26,7 @@ const ACTION_STYLES = {
     text:  "text-red-300",
     dot:   "bg-red-400",
     badge: "bg-red-500/20 border-red-500/30 text-red-300",
-    icon:  "✕",
+    icon:  <FaTrashAlt className="text-sm" />,
     label: "Deleted",
   },
 };
@@ -123,7 +124,6 @@ function AdminHistory() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    setLoading(true);
     api
       .get("/car-history")
       .then((res) => {
@@ -222,7 +222,7 @@ function AdminHistory() {
         <div className="mb-6">
           <div className="relative max-w-md">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">
-              🔍
+              <FaSearch className="text-xs" />
             </span>
             <input
               type="text"
@@ -332,7 +332,7 @@ function AdminHistory() {
                           isOpen ? "rotate-180" : ""
                         }`}
                       >
-                        ▾
+                        <FaChevronDown className="text-xs" />
                       </span>
                     </button>
 
@@ -384,8 +384,8 @@ function AdminHistory() {
               })
             ) : (
               <div className="text-center py-20">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center">
-                  <span className="text-3xl opacity-30">📋</span>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500">
+                  <FaClipboardList className="text-2xl" />
                 </div>
                 <p className="text-slate-400 text-lg font-medium">
                   No history records found

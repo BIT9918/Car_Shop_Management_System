@@ -1,0 +1,6 @@
+# IDE and tools
+.qodo/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

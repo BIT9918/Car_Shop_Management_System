@@ -1,30 +1,96 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
-import { FaCheckCircle, FaReceipt, FaArrowRight, FaShoppingBag, FaMapMarkerAlt } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaReceipt,
+  FaPrint,
+  FaMapMarkerAlt,
+  FaShoppingBag,
+  FaCar,
+  FaStore,
+  FaTruck,
+  FaUser,
+  FaPhone,
+  FaRegCopy,
+  FaCheck,
+  FaArrowRight,
+  FaShieldAlt,
+  FaCalendarAlt,
+  FaQrcode,
+} from "react-icons/fa";
+import { IMG_BASE } from "../../config/api";
 
 const SHOP_LOCATION_URL = "https://maps.app.goo.gl/xkCBefrsdZy4eWG57";
 
 function CheckOut() {
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [orderStatus, setOrderStatus] = useState("idle");
+
+  const [customer] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("checkoutCustomer")) || {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [items] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("cart")) || [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [orderStatus, setOrderStatus] = useState(() => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      return cart.length > 0 ? "saving" : "idle";
+    } catch {
+      return "idle";
+    }
+  });
   const [orderError, setOrderError] = useState("");
+  const [copiedId, setCopiedId] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview"); // 'overview' | 'receipt'
   const orderSubmittedRef = useRef(false);
 
-  const submitOrder = (cart) => {
-    if (cart.length === 0 || orderSubmittedRef.current) return;
-
-    const customer = JSON.parse(localStorage.getItem("checkoutCustomer")) || {};
-
-    orderSubmittedRef.current = true;
+  const handleRetryOrder = () => {
+    orderSubmittedRef.current = false;
     setOrderStatus("saving");
     setOrderError("");
 
     api
       .post("/orders", {
-        items: cart.map((item) => ({
+        items: items.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+        })),
+        customer,
+      })
+      .then(() => {
+        setOrderStatus("success");
+        localStorage.removeItem("cart");
+        localStorage.removeItem("checkoutCustomer");
+        window.dispatchEvent(new Event("cartUpdated"));
+      })
+      .catch((err) => {
+        setOrderStatus("error");
+        setOrderError(
+          err.response?.data?.message ||
+            "Payment succeeded, but stock could not be updated. Please contact admin."
+        );
+      });
+  };
+
+  useEffect(() => {
+    if (items.length === 0 || orderSubmittedRef.current) return;
+
+    orderSubmittedRef.current = true;
+
+    api
+      .post("/orders", {
+        items: items.map((item) => ({
           id: item.id,
           quantity: item.quantity,
         })),
@@ -44,13 +110,7 @@ function CheckOut() {
             "Payment succeeded, but stock could not be updated. Please contact admin."
         );
       });
-  };
-
-  useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem("cart")) || [];
-    setItems(cart);
-    submitOrder(cart);
-  }, []);
+  }, [items, customer]);
 
   const calculateTotals = () => {
     const subtotal = items.reduce(
@@ -62,41 +122,46 @@ function CheckOut() {
     return { subtotal, shipping, total };
   };
 
-  const { subtotal, shipping, total } = calculateTotals();
+  const { subtotal, total } = calculateTotals();
 
-  const fakeOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+  const [fakeOrderId] = useState(
+    () => `ORD-${Math.floor(100000 + Math.random() * 900000)}`
+  );
+
   const fakeDate = new Date().toLocaleString("en-US", {
     dateStyle: "long",
     timeStyle: "short",
   });
 
-  const handleShowReceipt = () => {
-    if (orderStatus !== "success") return;
-    setShowReceipt(true);
+  const handleCopyOrder = () => {
+    navigator.clipboard.writeText(fakeOrderId);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
 
-  const handleFinish = () => {
-    navigate("/user/products");
+  const handlePrint = () => {
+    window.print();
   };
 
-  // ─── NO ITEMS ───
-  if (items.length === 0 && !showReceipt) {
+  // ─── NO ITEMS AND NO SAVED ORDER ───
+  if (items.length === 0 && orderStatus === "idle") {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center p-6">
-        <div className="text-center animate-fade-in-up">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-5">
-            <FaShoppingBag className="text-2xl text-gray-300" />
+      <div className="min-h-[75vh] flex items-center justify-center p-6 bg-slate-50">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 text-center shadow-xl border border-slate-200">
+          <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-inner">
+            <FaShoppingBag className="text-3xl" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          <h2 className="text-2xl font-black text-slate-900 mb-2">
             No Recent Purchase
           </h2>
-          <p className="text-gray-500 mb-6">
-            Start shopping to see your order here.
+          <p className="text-slate-500 mb-6 text-sm">
+            Explore our premium showroom collection to purchase your next vehicle.
           </p>
           <button
             onClick={() => navigate("/user/products")}
-            className="px-8 py-3.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold transition-all shadow-lg shadow-blue-600/25"
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 cursor-pointer"
           >
+            <FaCar />
             Browse Vehicles
           </button>
         </div>
@@ -105,200 +170,462 @@ function CheckOut() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 py-10 px-4 sm:px-6 lg:px-8">
-      {!showReceipt ? (
-        // ═══ SUCCESS CELEBRATION ═══
-        <div className="max-w-lg mx-auto text-center animate-fade-in-up">
-          <div className="mb-8">
-            {/* Animated checkmark */}
-            <div className="relative inline-flex">
-              <div className="w-28 h-28 bg-emerald-100 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-100">
-                <FaCheckCircle className="text-6xl text-emerald-500" />
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-6">
+        {/* ─── Hero Confirmation Banner (Clean White Theme) ─── */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl shadow-slate-200/50 text-center relative overflow-hidden">
+          {/* Subtle ambient gradient backdrop */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-emerald-100/50 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative">
+            {/* Animated Checkmark Badge */}
+            <div className="relative inline-flex mb-4">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl shadow-xl shadow-emerald-500/25">
+                <FaCheckCircle />
               </div>
-              <div className="absolute -inset-2 rounded-full border-2 border-emerald-200 animate-ping opacity-20"></div>
+              <div className="absolute -inset-2 rounded-full border-2 border-emerald-400/40 animate-ping opacity-30" />
             </div>
 
-            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mt-8 mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-3">
+              <FaShieldAlt className="text-[10px]" /> Payment Verified & Inventory Deducted
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900">
               Payment Successful!
             </h1>
-            <p className="text-lg text-gray-600">
-              Your vehicle order is being prepared for delivery 🎉
+            <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-xl mx-auto">
+              Thank you{customer.name ? `, ${customer.name}` : ""}. Your vehicle purchase has been confirmed and reserved in our showroom inventory.
             </p>
+
+            {/* Quick Meta Chips */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5 text-xs">
+              <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl font-mono text-slate-700 font-bold">
+                <span>{fakeOrderId}</span>
+                <button
+                  type="button"
+                  onClick={handleCopyOrder}
+                  title="Copy Order ID"
+                  className="text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                >
+                  {copiedId ? (
+                    <FaCheck className="text-emerald-600 text-xs" />
+                  ) : (
+                    <FaRegCopy className="text-xs" />
+                  )}
+                </button>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-slate-600 font-medium">
+                <FaCalendarAlt className="text-slate-400 text-xs" />
+                <span>{fakeDate}</span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-blue-700 font-bold">
+                <FaQrcode className="text-xs" />
+                <span>ABA QR Paid</span>
+              </div>
+            </div>
+
+            {/* Stock status indicator */}
+            {orderStatus === "saving" && (
+              <div className="mt-5 max-w-md mx-auto bg-blue-50 border border-blue-200 text-blue-700 rounded-xl px-4 py-2.5 text-xs font-semibold">
+                Syncing stock reduction with dealership inventory...
+              </div>
+            )}
+
+            {orderStatus === "error" && (
+              <div className="mt-5 max-w-md mx-auto bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-xs space-y-2">
+                <p>{orderError}</p>
+                <button
+                  onClick={handleRetryOrder}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
+                >
+                  Retry Stock Sync
+                </button>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Order info card */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-8">
-            <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-              <span>Order ID</span>
-              <span className="font-mono font-semibold text-gray-800">
-                {fakeOrderId}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-500">
-              <span>Date</span>
-              <span className="text-gray-800">{fakeDate}</span>
-            </div>
+        {/* ─── Navigation Tabs: Overview vs Official Receipt ─── */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer ${
+                activeTab === "overview"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                  : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+              }`}
+            >
+              Order Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("receipt")}
+              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === "receipt"
+                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/20"
+                  : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200"
+              }`}
+            >
+              <FaReceipt className="text-xs" />
+              Official Invoice
+            </button>
           </div>
-
-          {orderStatus === "saving" && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-2xl px-5 py-4 mb-6 text-sm font-medium">
-              Updating stock for your order...
-            </div>
-          )}
-
-          {orderStatus === "success" && (
-            <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-2xl px-5 py-4 mb-6 text-sm font-medium space-y-3">
-              <p>Stock updated successfully.</p>
-              <a
-                href={SHOP_LOCATION_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-blue-700 hover:text-blue-800 font-semibold"
-              >
-                <FaMapMarkerAlt />
-                View shop location
-              </a>
-            </div>
-          )}
-
-          {orderStatus === "error" && (
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-2xl px-5 py-4 mb-6 text-sm font-medium space-y-3">
-              <p>{orderError}</p>
-              <button
-                onClick={() => submitOrder(items)}
-                className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition"
-              >
-                Retry Stock Update
-              </button>
-            </div>
-          )}
 
           <button
-            onClick={handleShowReceipt}
-            disabled={orderStatus !== "success"}
-            className="w-full max-w-md py-4 px-8 text-lg font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl shadow-xl hover:shadow-2xl transform transition-all hover:scale-[1.02] flex items-center justify-center gap-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            onClick={handlePrint}
+            className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <FaReceipt />
-            View Detailed Receipt
-            <FaArrowRight className="text-sm" />
+            <FaPrint className="text-slate-500" />
+            <span>Print</span>
           </button>
         </div>
-      ) : (
-        // ═══ DETAILED RECEIPT ═══
-        <div className="max-w-2xl mx-auto animate-fade-in-up">
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
 
-            {/* Receipt Header */}
-            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-8 text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
-
-              <div className="relative">
-                <FaReceipt className="text-3xl mx-auto mb-3 opacity-80" />
-                <h2 className="text-2xl font-bold mb-1">Your Receipt</h2>
-                <p className="text-emerald-100 text-sm">
-                  Order #{fakeOrderId} • {fakeDate}
-                </p>
-                <div className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 bg-white/15 rounded-full text-sm font-medium">
-                  <FaCheckCircle className="text-xs" />
-                  Payment Confirmed
+        {/* ─── TAB 1: ORDER OVERVIEW ─── */}
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+            {/* Left 2 Cols: Purchased Vehicles & Fulfillment */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Purchased Vehicles Card */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+                  <div className="flex items-center gap-2">
+                    <FaCar className="text-blue-600 text-base" />
+                    <h2 className="text-base font-bold text-slate-900">
+                      Purchased Vehicle{items.length > 1 ? "s" : ""}
+                    </h2>
+                  </div>
+                  <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600">
+                    {items.length} {items.length === 1 ? "Vehicle" : "Vehicles"}
+                  </span>
                 </div>
-              </div>
-            </div>
 
-            {/* Items */}
-            <div className="p-6 md:p-8">
-              <div className="space-y-0">
-                {items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col sm:flex-row sm:items-center gap-4 py-5 border-b border-gray-100 last:border-0 animate-fade-in"
-                    style={{
-                      animationDelay: `${index * 0.1}s`,
-                      animationFillMode: "both",
-                    }}
-                  >
-                    {/* Image */}
-                    <div className="w-20 h-20 bg-gray-50 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 flex items-center justify-center">
-                      <img
-                        src={
-                          item.image
-                            ? `http://127.0.0.1:8000/storage/cars/${item.image}`
-                            : "https://placehold.co/80x80/f3f4f6/9ca3af?text=No+Image"
-                        }
-                        alt={item.name}
-                        className="max-h-full object-contain p-1"
-                      />
-                    </div>
+                <div className="divide-y divide-slate-100">
+                  {items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <img
+                          src={
+                            item.image
+                              ? `${IMG_BASE}${item.image}`
+                              : "https://placehold.co/120x80/f8fafc/64748b?text=Vehicle"
+                          }
+                          alt={item.name}
+                          className="w-24 h-16 rounded-2xl object-cover border border-slate-200 bg-slate-50 shadow-sm shrink-0"
+                          onError={(e) => {
+                            e.target.src = "https://placehold.co/120x80/f8fafc/64748b?text=Vehicle";
+                          }}
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-slate-900 text-base">
+                              {item.name}
+                            </h3>
+                            {item.brand && (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
+                                {item.brand}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Unit Price:{" "}
+                            <strong className="text-slate-800 font-mono">
+                              ${Number(item.price).toLocaleString()}
+                            </strong>{" "}
+                            • Quantity:{" "}
+                            <strong className="text-blue-600">{item.quantity}</strong>
+                          </p>
+                          <span className="inline-flex items-center gap-1 mt-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <FaCheck className="text-[9px]" /> Showroom Inventory Deducted
+                          </span>
+                        </div>
+                      </div>
 
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-gray-900 truncate">
-                        {item.name}
-                      </h3>
-                      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                        <span>
-                          ${Number(item.price).toLocaleString()} × {item.quantity}
-                        </span>
+                      <div className="text-right sm:self-center">
+                        <p className="text-xs text-slate-400 font-medium">Subtotal</p>
+                        <p className="text-lg font-black text-slate-900 font-mono">
+                          ${(item.price * item.quantity).toLocaleString()}
+                        </p>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Item total */}
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900">
-                        ${(item.price * item.quantity).toLocaleString()}
-                      </p>
-                    </div>
+              {/* Delivery & Fulfillment Stage Tracker */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    {customer.delivery_method === "delivery" ? (
+                      <FaTruck className="text-amber-500 text-base" />
+                    ) : (
+                      <FaStore className="text-indigo-600 text-base" />
+                    )}
+                    <h2 className="text-base font-bold text-slate-900">
+                      Fulfillment Status
+                    </h2>
                   </div>
-                ))}
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                      customer.delivery_method === "delivery"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                    }`}
+                  >
+                    {customer.delivery_method === "delivery"
+                      ? "Home Delivery"
+                      : "Showroom Store Pickup"}
+                  </span>
+                </div>
+
+                {/* 3-Step Visual Progress Bar */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3 text-center">
+                    <div className="w-7 h-7 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto mb-1 text-xs font-black">
+                      <FaCheck />
+                    </div>
+                    <p className="text-xs font-bold text-emerald-800">1. Paid</p>
+                    <p className="text-[10px] text-emerald-600">Verified via ABA</p>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 text-center">
+                    <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-1 text-xs font-black">
+                      2
+                    </div>
+                    <p className="text-xs font-bold text-blue-800">2. Preparation</p>
+                    <p className="text-[10px] text-blue-600">Inspection & Detailing</p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-center opacity-70">
+                    <div className="w-7 h-7 bg-slate-300 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-1 text-xs font-black">
+                      3
+                    </div>
+                    <p className="text-xs font-bold text-slate-700">3. Handover</p>
+                    <p className="text-[10px] text-slate-500">Ready for pickup</p>
+                  </div>
+                </div>
+
+                {/* Dealership Location & Directions */}
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <FaMapMarkerAlt className="text-rose-500" /> CAR SHOP Showroom
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Phnom Penh Showroom & Fulfillment Center
+                    </p>
+                  </div>
+                  <a
+                    href={SHOP_LOCATION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm cursor-pointer self-start sm:self-center"
+                  >
+                    <FaMapMarkerAlt className="text-xs" />
+                    Open Google Maps
+                  </a>
+                </div>
               </div>
             </div>
 
-            {/* Totals */}
-            <div className="bg-gray-50 px-6 md:px-8 py-6 border-t border-gray-200">
-              <div className="max-w-sm ml-auto space-y-3">
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Subtotal</span>
-                  <span>${subtotal.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Shipping</span>
-                  <span className="text-emerald-600 font-medium">Free</span>
-                </div>
-                <div className="flex justify-between text-xl font-bold text-gray-900 pt-4 border-t border-gray-200">
-                  <span>Grand Total</span>
-                  <span>${total.toLocaleString()}</span>
+            {/* Right 1 Col: Customer Details & Financial Summary */}
+            <div className="space-y-6">
+              {/* Customer Contact Card */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-3.5">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <FaUser className="text-blue-600 text-xs" /> Customer Details
+                </p>
+                <div className="text-xs space-y-2 text-slate-700">
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-400">Name:</span>
+                    <strong className="text-slate-900">{customer.name || "Customer"}</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-400">Phone:</span>
+                    <strong className="text-slate-900 font-mono">{customer.phone || "N/A"}</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="text-slate-400">Email:</span>
+                    <strong className="text-slate-900 font-mono">{customer.email || "N/A"}</strong>
+                  </div>
+                  <div className="pt-1">
+                    <span className="text-slate-400 block text-[11px] mb-1">Destination:</span>
+                    <p className="text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed text-xs">
+                      {customer.address || "Showroom Counter Pickup"}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="p-8 text-center bg-white border-t border-gray-100">
-              <p className="text-gray-500 mb-6 text-sm">
-                Thank you for your purchase! A digital copy has been sent to
-                your email.
-              </p>
+              {/* Order Financial Totals Card */}
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Financial Summary
+                </p>
 
-              <a
-                href={SHOP_LOCATION_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full max-w-md mb-3 mx-auto py-3.5 border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                <FaMapMarkerAlt />
-                View Shop Location
-              </a>
+                <div className="space-y-2 text-xs text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Vehicle Subtotal:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      ${subtotal.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Showroom Prep & Registration:</span>
+                    <span className="font-semibold text-emerald-600">Complimentary</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Delivery / Pickup:</span>
+                    <span className="font-semibold text-emerald-600">Free ($0.00)</span>
+                  </div>
 
-              <button
-                onClick={handleFinish}
-                className="w-full max-w-md py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-600/20 hover:shadow-xl"
-              >
-                Continue Shopping
-              </button>
+                  <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-900">Grand Total:</span>
+                    <span className="text-2xl font-black text-blue-700 font-mono">
+                      ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pt-2 space-y-2.5">
+                  <button
+                    onClick={() => setActiveTab("receipt")}
+                    className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    <FaReceipt />
+                    View Detailed Invoice
+                  </button>
+
+                  <button
+                    onClick={() => navigate("/user/products")}
+                    className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-blue-600/25"
+                  >
+                    <span>Continue Shopping</span>
+                    <FaArrowRight className="text-xs" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ─── TAB 2: DETAILED INVOICE & RECEIPT ─── */}
+        {activeTab === "receipt" && (
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-3xl mx-auto animate-fade-in">
+            {/* Invoice Top Header */}
+            <div className="p-6 sm:p-8 bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center text-white">
+                    <FaCar />
+                  </div>
+                  <h2 className="text-xl font-black tracking-tight">CAR SHOP</h2>
+                </div>
+                <p className="text-xs text-blue-200 mt-1">Official Sales Invoice & Certificate of Purchase</p>
+              </div>
+
+              <div className="sm:text-right">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-sm mb-1">
+                  PAID IN FULL
+                </span>
+                <p className="font-mono text-xs text-blue-100">Invoice: {fakeOrderId}</p>
+                <p className="text-[11px] text-blue-200">{fakeDate}</p>
+              </div>
+            </div>
+
+            {/* Billed To / Dealership Info */}
+            <div className="p-6 sm:p-8 border-b border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <div>
+                <span className="text-slate-400 font-bold uppercase tracking-wider block mb-1">Billed To</span>
+                <p className="text-sm font-bold text-slate-900">{customer.name || "Customer"}</p>
+                <p className="text-slate-600 mt-0.5">{customer.email || "No email provided"}</p>
+                <p className="text-slate-600 mt-0.5">Phone: {customer.phone || "N/A"}</p>
+                <p className="text-slate-600 mt-0.5">Address: {customer.address || "Showroom Pickup"}</p>
+              </div>
+
+              <div className="sm:text-right">
+                <span className="text-slate-400 font-bold uppercase tracking-wider block mb-1">Merchant Details</span>
+                <p className="text-sm font-bold text-slate-900">CAR SHOP DEALERSHIP</p>
+                <p className="text-slate-600 mt-0.5">Payment Gateway: ABA PayWay KHQR</p>
+                <p className="text-slate-600 mt-0.5">Showroom: Phnom Penh, Cambodia</p>
+                <p className="text-slate-600 mt-0.5">Status: Verified & Processed</p>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="p-6 sm:p-8">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 uppercase text-[10px] tracking-wider pb-2">
+                    <th className="py-2.5">Vehicle</th>
+                    <th className="py-2.5">Brand</th>
+                    <th className="py-2.5 text-right">Unit Price</th>
+                    <th className="py-2.5 text-center">Qty</th>
+                    <th className="py-2.5 text-right">Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.map((item) => (
+                    <tr key={item.id} className="text-slate-700">
+                      <td className="py-3 font-bold text-slate-900">{item.name}</td>
+                      <td className="py-3 text-slate-500">{item.brand || "CAR SHOP"}</td>
+                      <td className="py-3 text-right font-mono">${Number(item.price).toLocaleString()}</td>
+                      <td className="py-3 text-center font-bold text-blue-600">{item.quantity}</td>
+                      <td className="py-3 text-right font-bold text-slate-900 font-mono">
+                        ${(item.price * item.quantity).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Total Calculation */}
+              <div className="mt-6 pt-4 border-t border-slate-200 space-y-2 text-xs text-slate-600 max-w-xs ml-auto">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span className="font-mono text-slate-900">${subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Showroom Preparation:</span>
+                  <span className="text-emerald-600 font-semibold">$0.00 (Free)</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-slate-200 text-base font-bold text-slate-900">
+                  <span>Total Paid:</span>
+                  <span className="font-mono text-blue-700">
+                    ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Receipt Footer */}
+            <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-xs text-slate-500">
+                Official proof of vehicle ownership transfer generated by CAR SHOP.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-2 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <FaPrint className="text-xs text-blue-600" />
+                  Print Invoice
+                </button>
+                <button
+                  onClick={() => setActiveTab("overview")}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer shadow-md shadow-blue-600/20"
+                >
+                  Back to Overview
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -7,7 +7,14 @@ function UserLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user"));
-  const [cartCount, setCartCount] = useState(0);
+  const [cartCount, setCartCount] = useState(() => {
+    try {
+      const cart = JSON.parse(localStorage.getItem("cart")) || [];
+      return cart.reduce((sum, item) => sum + item.quantity, 0);
+    } catch {
+      return 0;
+    }
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -18,7 +25,6 @@ function UserLayout() {
   };
 
   useEffect(() => {
-    updateCartCount();
     window.addEventListener("cartUpdated", updateCartCount);
     return () => window.removeEventListener("cartUpdated", updateCartCount);
   }, []);
@@ -32,8 +38,10 @@ function UserLayout() {
 
   // Close mobile menu on route change
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setMobileOpen(false);
     setMenuOpen(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [location.pathname]);
 
   const handleLogout = async () => {
