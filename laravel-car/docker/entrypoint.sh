@@ -11,6 +11,7 @@ echo "==> Starting Car Shop Backend on port $PORT..."
 envsubst '$PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 # Ensure storage link exists
+rm -rf /var/www/html/public/storage
 php artisan storage:link || true
 
 # Ensure permissions
