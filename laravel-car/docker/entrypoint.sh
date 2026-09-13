@@ -8,7 +8,7 @@ export PORT
 echo "==> Starting Car Shop Backend on port $PORT..."
 
 # Substitute environment variables into Nginx configuration
-envsubst '$PORT' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+envsubst '$PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
 # Ensure storage link exists
 php artisan storage:link || true
