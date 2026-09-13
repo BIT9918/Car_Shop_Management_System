@@ -1,5 +1,5 @@
 # Production Dockerfile for Laravel on Render
-FROM php:8.2-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Set working directory
 WORKDIR /var/www/html
@@ -36,7 +36,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY . /var/www/html
 
 # Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --ignore-platform-reqs
 
 # Copy Nginx template and entrypoint
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf.template
