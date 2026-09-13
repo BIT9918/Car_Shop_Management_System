@@ -14,15 +14,18 @@ class InitialDataSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Seed Admin User
-        User::firstOrCreate(
-            ['email' => 'admin@gmail.com'],
+        // 1. Seed Admin User (Secure Production Account)
+        User::updateOrCreate(
+            ['email' => 'mengrithychey@gmail.com'],
             [
-                'name' => 'Admin',
-                'password' => Hash::make('password'),
+                'name' => 'Meng Rithy Chey',
+                'password' => Hash::make('Bitpromaxplus123'),
                 'role' => 'admin',
             ]
         );
+
+        // Remove legacy insecure test admin
+        User::where('email', 'admin@gmail.com')->delete();
 
         // 2. Seed Standard Demo User
         User::firstOrCreate(
